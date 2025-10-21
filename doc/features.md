@@ -1,4 +1,4 @@
-
+```
   --get-call-list              Get call list
   --get-call-details \<call-id> Get call details
   --call \<destination>         Call to number
@@ -11,5 +11,4 @@
   --set-input \<device-index>   Set active input audio device
   --set-output \<device-index>  Set active output audio device
   --dtmf \<key>                 Send DTMF
-
-
+```
