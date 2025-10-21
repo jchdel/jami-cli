@@ -404,7 +404,13 @@ class libjamiCtrl(Thread):
 
         Required parameters are type, alias, hostname, username and password
 
-        input details
+        input details = {
+        "Account.type": DEFAUL_ACCT_TYPE,
+        "Account.alias": alias,
+        "Account.hostname": hostname,
+        "Account.username": username,
+        "Account.password": password,
+        }
         """
 
         if details is None:
@@ -488,6 +494,27 @@ class libjamiCtrl(Thread):
             details = self.getAccountDetails(account)
             details['Account.enable'] = "false"
             self.configurationmanager.setAccountDetails(account, details)
+
+    # added by jchdel
+    def setAccountDetails(self, account=None, details=None):
+        """Set account details"""
+
+        if details is None:
+            raise libjamiCtrlAccountError("Must provide some details to update")
+        if (type(details) == str):
+            d = json.loads(details)
+        elif (str(type(details)) == "<class '_io.TextIOWrapper'>"):
+            d = json.load(details)
+        else:
+            raise libjamiCtrlAccountError("Provided details are nor a string nor a file descriptor")
+
+        account = self._valid_account(account)
+        odetails = self.getAccountDetails(account)
+        for k,v in d:
+            if odetails[k] is None:
+                raise libjamiCtrlAccountError("the key %s is not recognized" % k)
+            odetails[k] = v
+        self.configurationmanager.setAccountDetails(account, odetails)
 
     def setAccountRegistered(self, account=None, register=False):
         """ Tries to register the account"""
