@@ -255,22 +255,26 @@ class libjamiCtrl(Thread):
         self.onCallOver_cb()
         del self.activeCalls[callid]
 
-    def onCallStateChanged_cb(self, callid, state, code):
+    def onCallStateChanged_cb(self, account, callid, state, code):
         pass
 
-    def onCallStateChanged(self, callid, state, code):
+    ## jchdel: fix a bug: add 'account' as it is provided by DBus
+    def onCallStateChanged(self, account, callid, state, code):
         """ On call state changed event, set the values for new calls,
         or delete the call from the list of active calls
         """
-        print(("On call state changed " + callid + " " + state))
+        print(("On call state changed " + str(account) + "; " + str(callid) + "; " + str(state) + "; " + str(code)))
 
         if callid not in self.activeCalls:
             print("This call didn't exist!: " + callid + ". Adding it to the list.")
             callDetails = self.getCallDetails(callid)
-            self.activeCalls[callid] = {'Account': callDetails['ACCOUNTID'],
-                                             'To': callDetails['PEER_NUMBER'],
-                                          'State': state,
-                                          'Code': code }
+            ## jchdel: fix a bug
+            print(callDetails)
+            if callDetails is not None:
+                self.activeCalls[callid] = {'Account': callDetails['ACCOUNTID'],
+                                           'To': callDetails['PEER_NUMBER'],
+                                           'State': state,
+                                           'Code': code }
 
         self.currentCallId = callid
 
@@ -294,7 +298,7 @@ class libjamiCtrl(Thread):
             self.onCallInactive(callid,state)
         else:
             print("unknown state:" + str(state))
-        self.onCallStateChanged_cb(callid, state, code)
+        self.onCallStateChanged_cb(account, callid, state, code)
 
     def onConferenceCreated_cb(self):
         pass
