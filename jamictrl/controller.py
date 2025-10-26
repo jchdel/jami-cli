@@ -90,7 +90,7 @@ class libjamiCtrl(Thread):
 
         if not bus.name_has_owner(DBUS_DEAMON_OBJECT) :
             raise libjamiCtrlDBusError(("Unable to find %s in DBUS." % DBUS_DEAMON_OBJECT)
-                                     + " Check if jami is running")
+                                     + " Check if Jami is running")
 
         try:
             proxy_instance = bus.get_object(DBUS_DEAMON_OBJECT,
@@ -134,7 +134,7 @@ class libjamiCtrl(Thread):
             proxy_confmgr.connect_to_signal('messageReceived', self.onMessageReceived)
 
         except dbus.DBusException as e:
-            raise libjamiCtrlDBusError("Unable to connect to jami DBus signals")
+            raise libjamiCtrlDBusError("Unable to connect to Jami DBus signals")
 
 
     def unregister(self):
@@ -160,7 +160,7 @@ class libjamiCtrl(Thread):
             self.Accept(callId)
         pass
 
-    def onCallHangup_cb(self, callId):
+    def onCallEnd_cb(self, callId):
         pass
 
     def onCallConnecting_cb(self, callId):
@@ -197,11 +197,11 @@ class libjamiCtrl(Thread):
         self.onIncomingCall_cb(callid)
 
 
-    def onCallHangUp(self, callid, state):
+    def onCallEnd(self, callid, state):
         """ Remove callid from call list """
 
         self.activeCalls[callid]['State'] = state
-        self.onCallHangup_cb(callid)
+        self.onCallEnd_cb(callid)
         self.currentCallId = ""
 
     def onCallConnecting(self, callid, state):
@@ -279,7 +279,7 @@ class libjamiCtrl(Thread):
         self.currentCallId = callid
 
         if state == "HUNGUP":
-            self.onCallHangUp(callid, state)
+            self.onCallEnd(callid, state)
         elif state == "CONNECTING":
             self.onCallConnecting(callid, state)
         elif state == "RINGING":
@@ -667,7 +667,7 @@ class libjamiCtrl(Thread):
         return callid
 
 
-    def HangUp(self, callid):
+    def End(self, callid):
         """
         Use the current account previously set using setAccount().
         If no account specified, first registered one in account list is used.
@@ -689,7 +689,7 @@ class libjamiCtrl(Thread):
         if callid is None or callid == "":
             pass # just to see
 
-        self.callmanager.hangUp(self.account, callid)
+        self.callmanager.end(self.account, callid)
 
 
     def Transfer(self, callid, to):
@@ -713,12 +713,12 @@ class libjamiCtrl(Thread):
 
         self.callmanager.transfert(self.account, callid, to)
 
-    def Refuse(self, callid):
+    def Decline(self, callid):
         """
         Use the current account previously set using setAccount().
         If no account specified, first registered one in account list is used.
 
-        Refuse an incoming call identified by a CallID
+        Decline an incoming call identified by a CallID
         """
 
         # Set the account to be used for this call
@@ -729,12 +729,12 @@ class libjamiCtrl(Thread):
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
 
 
-        print("Refuse call " + callid)
+        print("Decline call " + callid)
 
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
 
-        self.callmanager.refuse(self.account, callid)
+        self.callmanager.decline(self.account, callid)
 
 
     def Accept(self, callid):
@@ -849,10 +849,10 @@ class libjamiCtrl(Thread):
         self.callmanager.joinParticipant(call1Id, call2Id)
         return self.callmanager.getConferenceId(call1Id)
 
-    def hangupConference(self, confId):
-        """ Hang up each call for this conference """
+    def endConference(self, confId):
+        """ End each call for this conference """
 
-        self.callmanager.hangUpConference(confId)
+        self.callmanager.endConference(confId)
 
     def switchInput(self, callid, inputName):
         """switch to input if exist"""
