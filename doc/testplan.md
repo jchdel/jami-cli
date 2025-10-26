@@ -30,5 +30,5 @@ call=$(jamictrl.py --get-call-list)
 jamictrl.py --accept $call
 jamictrl.py --hold $call
 jamictrl.py --unhold $call
-jamictrl.py --hangup $call
+jamictrl.py --end $call
 ```
