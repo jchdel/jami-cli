@@ -149,7 +149,8 @@ if __name__ == "__main__":
         ctrl.printAccountDetails(args.get_account_details)
 
     if hasattr(args, 'get_active_codecs'):
-        print(ctrl.getActiveCodecs(args.get_active_codec))
+        # jchdel: bug: s/codec/codecs/
+        print(ctrl.getActiveCodecs(args.get_active_codecs))
 
     if args.set_active_codecs:
         ctrl.setActiveCodecList(codec_list=args.set_active_codecs)
