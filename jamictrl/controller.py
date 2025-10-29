@@ -254,6 +254,8 @@ class libjamiCtrl(Thread):
 
         self.onCallOver_cb()
         del self.activeCalls[callid]
+        ## jchdel: reset current call as none exists anymore
+        self.currentCallId = None
 
     def onCallStateChanged_cb(self, account, callid, state, code):
         pass
@@ -268,8 +270,8 @@ class libjamiCtrl(Thread):
         if callid not in self.activeCalls:
             print("This call didn't exist!: " + callid + ". Adding it to the list.")
             callDetails = self.getCallDetails(callid)
-            ## jchdel: fix a bug
-            print(callDetails)
+            ## jchdel: debug
+            #print(callDetails)
             if callDetails is not None:
                 self.activeCalls[callid] = {'Account': callDetails['ACCOUNTID'],
                                            'To': callDetails['PEER_NUMBER'],
