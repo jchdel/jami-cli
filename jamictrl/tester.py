@@ -58,7 +58,7 @@ class libjamiTester():
         print("**[BEGIN] test config")
         allCodecs = ctrl.getAllCodecs()
         if len(allCodecs) == 0:
-            print("error no codec on the system")
+            print("Error no codec on the system")
             return 0
 
         print("**[SUCCESS] test config")
@@ -74,12 +74,12 @@ class libjamiTester():
         ipAccount = ctrl.getAllAccounts()
         print(ipAccount)
         if len(ipAccount) == 0:
-            print("no IP2IP account")
+            print("No IP2IP account")
             return 0
         return 1
 
     def registerAccount(self, ctrl, account):
-        print("registering:" + account)
+        print("Registering: " + account)
         ctrl.setAccountRegistered(account, True)
 
     def setActiveCodecs(self, ctrl, account):
@@ -139,7 +139,7 @@ class libjamiTester():
                     break
 
         if (codecAudioId == 0 or codecVideoId == 0):
-            print ("please configure at least one A/V codec !")
+            print ("Please configure at least one A/V codec.")
             return
 
         print ("selecting codecs audio= "+nameCodecAudio + " video= "+nameCodecVideo)
@@ -179,18 +179,18 @@ class libjamiTester():
 
             time.sleep(delay)
 
-            ctrl.HangUp(callId)
+            ctrl.End(callId)
             count += 1
 
-        print("**[SUCCESS] DHT Call Test")
-        print("**[END] DHT Call Test")
+        print("**[SUCCESS] DHT call test")
+        print("**[END] DHT call test")
 
 # testLoopCallDhtWithHold
 # perform <nbIteration> DHT calls using <delay> between each call
 # perform stress hold/unhold between each call
 
     def testLoopCallDhtWithHold(self, ctrl, nbIteration, delay):
-        print("**[BEGIN] DHT Call Test With Hold")
+        print("**[BEGIN] DHT call test with hold")
 
         count = 0
         while count < nbIteration:
@@ -211,12 +211,11 @@ class libjamiTester():
                 self.holdToggle(ctrl, callId, delayHold)
                 countHold = countHold + 1
 
-
-            ctrl.HangUp(callId)
+            ctrl.End(callId)
             count += 1
 
-        print("**[SUCCESS] DHT Call Test With Hold")
-        print("**[END] DHT Call Test With Hold")
+        print("**[SUCCESS] DHT call test with hold")
+        print("**[END] DHT call test with hold")
 
 
 # testLoopCallDhtWithIncBitrate
@@ -224,7 +223,7 @@ class libjamiTester():
 # inc bitrate between each iteration
 
     def testLoopCallDhtWithIncBitrate(self, ctrl, nbIteration, delay):
-        print("**[BEGIN] VIDEO Bitrate Test")
+        print("**[BEGIN] VIDEO bitrate test")
 
         count = 0
         currBitrate = self.minBitrate
@@ -243,15 +242,15 @@ class libjamiTester():
 
             time.sleep(delay)
 
-            ctrl.HangUp(callId)
+            ctrl.End(callId)
             count += 1
 
             currBitrate += self.incBitrate
             if (currBitrate > self.maxBitrate):
                 currBitrate = self.minBitrate
 
-        print("**[SUCCESS] VIDEO Bitrate Test")
-        print("**[END] VIDEO Bitrate Test")
+        print("**[SUCCESS] VIDEO bitrate test")
+        print("**[END] VIDEO bitrate test")
 
 # testSimultaneousLoopCallDht
 # perform <nbIteration> simultaneous DHT calls using <delay> between each call
@@ -273,9 +272,9 @@ class libjamiTester():
 
                 time.sleep(delay)
 
-            # hangup each call
+            # end each call
             for callId in ctrl.getAllCalls():
-                ctrl.HangUp(callId)
+                ctrl.End(callId)
 
             count += 1
 
@@ -283,18 +282,16 @@ class libjamiTester():
         print("**[END] Simultaneous DHT call test")
 
 
-
-
 # Main function
 
     def start(self, ctrl, testName):
 
         if not testName in ALL_TEST_NAME:
-            print(("wrong test name"))
+            print(("Incorrect test name"))
             return
 
         #getConfig
-        self.dhtAccountId = ctrl.getAllAccounts('RING')[0]
+        self.dhtAccountId = ctrl.getAllAccounts('JAMI')[0]
         self.sipAccountId = ctrl.getAllAccounts('SIP')[0]
 
         config = configparser.ConfigParser()

@@ -63,7 +63,7 @@ class MainApp(App):
                 # Don't add two operators right after each other
                 return
             elif current == "" and button_text in self.operators:
-                # First character cannot be an operator
+                # First character is unable to be an operator
                 return
             else:
                 new_text = current + button_text

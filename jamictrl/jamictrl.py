@@ -47,9 +47,9 @@ if __name__ == "__main__":
     parser.add_argument('--get-all-accounts-details', help='Get all accounts details',
                         action='store_true')
 
-    parser.add_argument('--add-ring-account', help='Add new Ring account',
+    parser.add_argument('--add-jami-account', help='Add new Jami account',
                         metavar='<account>', type=str)
-    parser.add_argument('--remove-ring-account', help='Remove Ring account',
+    parser.add_argument('--remove-jami-account', help='Remove Jami account',
                         metavar='<account>', type=str)
     parser.add_argument('--get-account-details', help='Get account details',
                         metavar='<account>', type=str)
@@ -86,9 +86,9 @@ if __name__ == "__main__":
     #group.add_argument('--transfer', help='Transfer active call', metavar='<destination>')
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--accept', help='Accept the call', metavar='<call>')
-    group.add_argument('--hangup', help='Hangup the call', metavar='<call>')
-    group.add_argument('--refuse', help='Refuse the call', metavar='<call>')
+    group.add_argument('--accept', help='Accept call', metavar='<call>')
+    group.add_argument('--end', help='End call', metavar='<call>')
+    group.add_argument('--decline', help='Decline call', metavar='<call>')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--hold', help='Hold the call', metavar='<call>')
@@ -110,12 +110,12 @@ if __name__ == "__main__":
 
     ctrl = libjamiCtrl(sys.argv[0], args.auto_answer)
 
-    if args.add_ring_account:
-        accDetails = {'Account.type':'RING', 'Account.alias':args.add_ring_account if args.add_ring_account!='' else 'RingAccount'}
+    if args.add_jami_account:
+        accDetails = {'Account.type':'JAMI', 'Account.alias':args.add_jami_account if args.add_jami_account!='' else 'JamiAccount'}
         accountID = ctrl.addAccount(accDetails)
 
-    if args.remove_ring_account and args.remove_ring_account != '':
-        ctrl.removeAccount(args.remove_ring_account)
+    if args.remove_jami_account and args.remove_jami_account != '':
+        ctrl.removeAccount(args.remove_jami_account)
 
     if args.get_all_codecs:
         print(ctrl.getAllCodecs())
@@ -176,7 +176,6 @@ if __name__ == "__main__":
         for k,detail in details.items():
             print(k + ": " + detail)
 
-
     if args.get_conference_list:
         for conference in ctrl.getAllConferences():
             print(conference)
@@ -195,11 +194,11 @@ if __name__ == "__main__":
     if args.accept:
         ctrl.Accept(args.accept)
 
-    if args.refuse:
-        ctrl.Refuse(args.refuse)
+    if args.decline:
+        ctrl.Decline(args.decline)
 
-    if args.hangup:
-        ctrl.HangUp(args.hangup)
+    if args.end:
+        ctrl.end(args.end)
 
     if args.hold:
         ctrl.Hold(args.hold)
@@ -243,4 +242,3 @@ if __name__ == "__main__":
         signal.signal(signal.SIGINT, ctrl.interruptHandler)
         ctrl.run()
         sys.exit(0)
-
