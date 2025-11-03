@@ -198,7 +198,7 @@ if __name__ == "__main__":
         ctrl.Decline(args.decline)
 
     if args.end:
-        ctrl.end(args.end)
+        ctrl.End(args.end)
 
     if args.hold:
         ctrl.Hold(args.hold)
