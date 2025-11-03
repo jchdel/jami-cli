@@ -197,6 +197,14 @@ class libjamiCtrl(Thread):
         self.onIncomingCall_cb(callid)
 
 
+    def onCallIncoming(self, callid, state):
+        """ Update state for this call to Incoming """
+
+        self.activeCalls[callid]['State'] = state
+        self.currentCallId = callid
+        self.onIncomingCall_cb(callid)
+
+
     def onCallEnd(self, callid, state):
         """ Remove callid from call list """
 
@@ -286,6 +294,8 @@ class libjamiCtrl(Thread):
             self.onCallConnecting(callid, state)
         elif state == "RINGING":
             self.onCallRinging(callid, state)
+        elif state == "INCOMING":
+            self.onCallIncoming(callid, state)
         elif state == "CURRENT":
             self.onCallCurrent(callid, state)
         elif state == "HOLD":
