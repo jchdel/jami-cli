@@ -1,10 +1,6 @@
 #! /usr/bin/env python3
 #
-#  Copyright (C) 2004-2025 Savoir-faire Linux Inc. Inc
-#
-# Author: Guillaume Roguez <guillaume.roguez@savoirfairelinux.com>
-#
-# Contributor: Jean-Charles de Longueville <jean-charles@de-longueville.eu>
+# Copyright (C) 2004-2025 Savoir-faire Linux Inc. Inc
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -800,12 +796,12 @@ class libjamiCtrl(Thread):
         self.callmanager.hold(self.account, callid)
 
 
-    def UnHold(self, callid):
+    def Resume(self, callid):
         """
         Use the current account previously set using setAccount().
         If no account specified, first registered one in account list is used.
 
-        Unhold an incoming call identified by a CallID
+        Resume call identified by a CallID
         """
 
         # Set the account to be used for this call
@@ -819,7 +815,7 @@ class libjamiCtrl(Thread):
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
 
-        self.callmanager.unhold(self.account, callid)
+        self.callmanager.resume(self.account, callid)
 
     def SetAudioOutputDevice(self, index):
         self.configurationmanager.setAudioOutputDevice(int (index ))
