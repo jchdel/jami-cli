@@ -6,7 +6,7 @@
   --end \<call>                 End call
   --decline \<call>             Decline call
   --hold \<call>                Hold call
-  --unhold \<call>              Resume call
+  --resume \<call>              Resume call
   --list-audio-devices          List audio input and output devices
   --set-input \<device-index>   Set active input audio device
   --set-output \<device-index>  Set active output audio device
