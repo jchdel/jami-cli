@@ -150,8 +150,8 @@ class libjamiTester():
         print("Holding: " + callId)
         ctrl.Hold(callId)
         time.sleep(delay)
-        print("UnHolding: " + callId)
-        ctrl.UnHold(callId)
+        print("Resuming: " + callId)
+        ctrl.Resume(callId)
 
 #
 # tests
@@ -187,7 +187,7 @@ class libjamiTester():
 
 # testLoopCallDhtWithHold
 # perform <nbIteration> DHT calls using <delay> between each call
-# perform stress hold/unhold between each call
+# perform stress hold/resume between each call
 
     def testLoopCallDhtWithHold(self, ctrl, nbIteration, delay):
         print("**[BEGIN] DHT call test with hold")

@@ -91,8 +91,8 @@ if __name__ == "__main__":
     group.add_argument('--decline', help='Decline call', metavar='<call>')
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--hold', help='Hold the call', metavar='<call>')
-    group.add_argument('--unhold', help='Unhold the call', metavar='<call>')
+    group.add_argument('--hold', help='Hold call', metavar='<call>')
+    group.add_argument('--resume', help='Resume call', metavar='<call>')
 
     parser.add_argument('--list-audio-devices', help='List audio input and output devices', action='store_true')
     parser.add_argument('--set-input', help='Set active input audio device',
@@ -203,8 +203,8 @@ if __name__ == "__main__":
     if args.hold:
         ctrl.Hold(args.hold)
 
-    if args.unhold:
-        ctrl.UnHold(args.unhold)
+    if args.resume:
+        ctrl.Resume(args.resume)
 
     if args.list_audio_devices:
         allDevices = ctrl.ListAudioDevices()

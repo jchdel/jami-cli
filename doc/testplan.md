@@ -29,6 +29,6 @@ jamictrl.py --call $alice
 call=$(jamictrl.py --get-call-list)
 jamictrl.py --accept $call
 jamictrl.py --hold $call
-jamictrl.py --unhold $call
+jamictrl.py --resume $call
 jamictrl.py --end $call
 ```
