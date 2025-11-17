@@ -1,6 +1,10 @@
 #! /usr/bin/env python3
 #
-# Copyright (C) 2004-2025 Savoir-faire Linux Inc. Inc
+#  Copyright (C) 2004-2025 Savoir-faire Linux Inc. Inc
+#
+# Author: Guillaume Roguez <guillaume.roguez@savoirfairelinux.com>
+#
+# Contributor: Jean-Charles de Longueville <jean-charles@de-longueville.eu>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,7 +90,7 @@ class libjamiCtrl(Thread):
 
         if not bus.name_has_owner(DBUS_DEAMON_OBJECT) :
             raise libjamiCtrlDBusError(("Unable to find %s in DBUS." % DBUS_DEAMON_OBJECT)
-                                     + " Check if Jami is running")
+                                     + " Check if jami is running")
 
         try:
             proxy_instance = bus.get_object(DBUS_DEAMON_OBJECT,
@@ -123,6 +127,9 @@ class libjamiCtrl(Thread):
             proxy_callmgr.connect_to_signal('callStateChanged', self.onCallStateChanged)
             proxy_callmgr.connect_to_signal('conferenceCreated', self.onConferenceCreated)
             proxy_confmgr.connect_to_signal('accountsChanged', self.onAccountsChanged)
+            proxy_confmgr.connect_to_signal('incomingTrustRequest', self.onIncomingTrustRequest)
+            proxy_confmgr.connect_to_signal('contactAdded', self.onContactAdded)
+            proxy_confmgr.connect_to_signal('contactRemoved', self.onContactRemoved)
             proxy_confmgr.connect_to_signal('dataTransferEvent', self.onDataTransferEvent)
             proxy_confmgr.connect_to_signal('conversationReady', self.onConversationReady)
             proxy_confmgr.connect_to_signal('conversationRequestReceived', self.onConversationRequestReceived)
@@ -130,7 +137,7 @@ class libjamiCtrl(Thread):
             proxy_confmgr.connect_to_signal('messageReceived', self.onMessageReceived)
 
         except dbus.DBusException as e:
-            raise libjamiCtrlDBusError("Unable to connect to Jami DBus signals")
+            raise libjamiCtrlDBusError("Unable to connect to jami DBus signals")
 
 
     def unregister(self):
@@ -156,7 +163,7 @@ class libjamiCtrl(Thread):
             self.Accept(callId)
         pass
 
-    def onCallEnd_cb(self, callId):
+    def onCallHangup_cb(self, callId):
         pass
 
     def onCallConnecting_cb(self, callId):
@@ -201,11 +208,11 @@ class libjamiCtrl(Thread):
         self.onIncomingCall_cb(callid)
 
 
-    def onCallEnd(self, callid, state):
+    def onCallHangUp(self, callid, state):
         """ Remove callid from call list """
 
         self.activeCalls[callid]['State'] = state
-        self.onCallEnd_cb(callid)
+        self.onCallHangup_cb(callid)
         self.currentCallId = ""
 
     def onCallConnecting(self, callid, state):
@@ -285,7 +292,7 @@ class libjamiCtrl(Thread):
         self.currentCallId = callid
 
         if state == "HUNGUP":
-            self.onCallEnd(callid, state)
+            self.onCallHangUp(callid, state)
         elif state == "CONNECTING":
             self.onCallConnecting(callid, state)
         elif state == "RINGING":
@@ -538,6 +545,83 @@ class libjamiCtrl(Thread):
         print("Accounts changed")
 
     #
+    # Trust management
+    #
+
+    def onIncomingTrustRequest(self, account, conversation, orig, payload, received):
+        """ signal received"""
+        account = self._valid_account(account)
+        print("Trust Request received from %s" % orig)
+
+    def acceptTrustRequest(self, account=None, orig=None):
+        """ """
+        account = self._valid_account(account)
+        print("Accept trust request from %s" % orig)
+        return self.configurationmanager.acceptTrustRequest(account, orig) # from is a reserver word
+
+    def discardTrustRequest(self, account=None, orig=None):
+        """ """
+        account = self._valid_account(account)
+        print("Discard trust request from %s" % orig)
+        return self.configurationmanager.discardTrustRequest(account, orig)
+
+    def sendTrustRequest(self, account=None, to=None, payload=None):
+        """ """
+        account = self._valid_account(account)
+        print("Send trust request to %s" % to)
+        self.configurationmanager.sendTrustRequest(account, to, paylod)
+
+    def getTrustRequests(self, accoun=None):
+        """ """
+        account = self._valid_account(account)
+        print("Get trust requests")
+        return self.configurationmanager.getTrustRequest(account)
+
+    #
+    # Contacts management
+    #
+
+    def addContact(self, account=None, uri=None):
+        """ """
+        account = self._valid_account(account)
+        print("Add contact %s" % uri)
+        self.configurationmanager.addContact(account, uri)
+
+    def removeContact(self, account=None, uri=None, ban=False):
+        """ """
+        account = self._valid_account(account)
+        print("Remove contact %s" % uri)
+        self.configurationmanager.removeContact(account, uri, ban)
+
+    def getContactDetails(self, account=None, uri=None):
+        """ """
+        account = self._valid_account(account)
+        print("Get contact details for %s" % uri)
+        return self.configurationmanager.getContactDetails(account, uri)
+
+    def getContacts(self, account=None):
+        """ """
+        account = self._valid_account(account)
+        print("Get contacts")
+        return self.configurationmanager.getContacts(account)
+
+    def onContactAdded(self, account, uri, confirmed):
+        """ signal received"""
+        account = self._valid_account(account)
+        if confirmed:
+            print("contact %s added" % uri)
+        else:
+            print("failed to add contact %s" % uri)
+
+    def onContactRemoved(self, account, uri, confirmed):
+        """ signal received"""
+        account = self._valid_account(account)
+        if confirmed:
+            print("contact %s removed" % uri)
+        else:
+            print("failed to remove contact %s" % uri)
+
+    #
     # Codec manager
     #
 
@@ -675,7 +759,7 @@ class libjamiCtrl(Thread):
         return callid
 
 
-    def End(self, callid):
+    def HangUp(self, callid):
         """
         Use the current account previously set using setAccount().
         If no account specified, first registered one in account list is used.
@@ -697,7 +781,7 @@ class libjamiCtrl(Thread):
         if callid is None or callid == "":
             pass # just to see
 
-        self.callmanager.end(self.account, callid)
+        self.callmanager.hangUp(self.account, callid)
 
 
     def Transfer(self, callid, to):
@@ -721,12 +805,12 @@ class libjamiCtrl(Thread):
 
         self.callmanager.transfert(self.account, callid, to)
 
-    def Decline(self, callid):
+    def Refuse(self, callid):
         """
         Use the current account previously set using setAccount().
         If no account specified, first registered one in account list is used.
 
-        Decline an incoming call identified by a CallID
+        Refuse an incoming call identified by a CallID
         """
 
         # Set the account to be used for this call
@@ -737,12 +821,12 @@ class libjamiCtrl(Thread):
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
 
 
-        print("Decline call " + callid)
+        print("Refuse call " + callid)
 
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
 
-        self.callmanager.decline(self.account, callid)
+        self.callmanager.refuse(self.account, callid)
 
 
     def Accept(self, callid):
@@ -796,12 +880,12 @@ class libjamiCtrl(Thread):
         self.callmanager.hold(self.account, callid)
 
 
-    def Resume(self, callid):
+    def UnHold(self, callid):
         """
         Use the current account previously set using setAccount().
         If no account specified, first registered one in account list is used.
 
-        Resume call identified by a CallID
+        Unhold an incoming call identified by a CallID
         """
 
         # Set the account to be used for this call
@@ -815,7 +899,7 @@ class libjamiCtrl(Thread):
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
 
-        self.callmanager.resume(self.account, callid)
+        self.callmanager.unhold(self.account, callid)
 
     def SetAudioOutputDevice(self, index):
         self.configurationmanager.setAudioOutputDevice(int (index ))
@@ -857,10 +941,10 @@ class libjamiCtrl(Thread):
         self.callmanager.joinParticipant(call1Id, call2Id)
         return self.callmanager.getConferenceId(call1Id)
 
-    def endConference(self, confId):
-        """ End each call for this conference """
+    def hangupConference(self, confId):
+        """ Hang up each call for this conference """
 
-        self.callmanager.endConference(confId)
+        self.callmanager.hangUpConference(confId)
 
     def switchInput(self, callid, inputName):
         """switch to input if exist"""
