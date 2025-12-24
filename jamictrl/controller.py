@@ -166,6 +166,9 @@ class libjamiCtrl(Thread):
     def onCallHangup_cb(self, callId):
         pass
 
+    def onCallIncoming_cb(self, callId):
+        pass
+
     def onCallConnecting_cb(self, callId):
         pass
 
@@ -190,12 +193,15 @@ class libjamiCtrl(Thread):
     def onCallOver_cb(self):
         pass
 
-    def onIncomingCall(self, account, callid, to):
+    def onIncomingCall(self, account, callid, caller):
         """ On incoming call event, add the call to the list of active calls """
 
+        # jchdel: as a matter of fact, I never saw this signal being fired by jamid
+
+        ##print("Incoming call from %s" % caller)
         self.activeCalls[callid] = {'Account': account,
-                                         'To': to,
-                                      'State': ''}
+                                    'From': caller,
+                                    'State': ''}
         self.currentCallId = callid
         self.onIncomingCall_cb(callid)
 
@@ -203,9 +209,10 @@ class libjamiCtrl(Thread):
     def onCallIncoming(self, callid, state):
         """ Update state for this call to Incoming """
 
+        ##print("Incoming call %s" % callid)
         self.activeCalls[callid]['State'] = state
         self.currentCallId = callid
-        self.onIncomingCall_cb(callid)
+        self.onCallIncoming_cb(callid)
 
 
     def onCallHangUp(self, callid, state):
@@ -285,7 +292,8 @@ class libjamiCtrl(Thread):
             #print(callDetails)
             if callDetails is not None:
                 self.activeCalls[callid] = {'Account': callDetails['ACCOUNTID'],
-                                           'To': callDetails['PEER_NUMBER'],
+                                           'From': callDetails['PEER_NUMBER'],
+                                           'To': callDetails['TO_USERNAME'],
                                            'State': state,
                                            'Code': code }
 
@@ -548,16 +556,20 @@ class libjamiCtrl(Thread):
     # Trust management
     #
 
+    def onIncomingTrustRequest_cb(self, account, conversation, orig, payload, received):
+        pass
+
     def onIncomingTrustRequest(self, account, conversation, orig, payload, received):
         """ signal received"""
         account = self._valid_account(account)
         print("Trust Request received from %s" % orig)
+        self.onIncomingTrustRequest_cb(account, conversation, orig, payload, received)
 
     def acceptTrustRequest(self, account=None, orig=None):
         """ """
         account = self._valid_account(account)
         print("Accept trust request from %s" % orig)
-        return self.configurationmanager.acceptTrustRequest(account, orig) # from is a reserver word
+        return self.configurationmanager.acceptTrustRequest(account, orig) # from is a reserved word
 
     def discardTrustRequest(self, account=None, orig=None):
         """ """
@@ -569,7 +581,7 @@ class libjamiCtrl(Thread):
         """ """
         account = self._valid_account(account)
         print("Send trust request to %s" % to)
-        self.configurationmanager.sendTrustRequest(account, to, paylod)
+        self.configurationmanager.sendTrustRequest(account, to, payload)
 
     def getTrustRequests(self, accoun=None):
         """ """
@@ -877,6 +889,7 @@ class libjamiCtrl(Thread):
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
 
+        print("Hold call " + callid)
         self.callmanager.hold(self.account, callid)
 
 
@@ -899,6 +912,7 @@ class libjamiCtrl(Thread):
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
 
+        print("Unhold call " + callid)
         self.callmanager.unhold(self.account, callid)
 
     def SetAudioOutputDevice(self, index):
