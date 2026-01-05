@@ -175,33 +175,32 @@ class libjamiCtrl(Thread):
     def onCallRinging_cb(self, callId):
         pass
 
-    def onCallHold_cb(self):
+    def onCallHold_cb(self, callId):
         pass
 
-    def onCallInactive_cb(self):
+    def onCallInactive_cb(self, callId):
         pass
 
-    def onCallCurrent_cb(self):
+    def onCallCurrent_cb(self, callId):
         pass
 
-    def onCallBusy_cb(self):
+    def onCallBusy_cb(self, callid):
         pass
 
-    def onCallFailure_cb(self):
+    def onCallFailure_cb(self, callId):
         pass
 
-    def onCallOver_cb(self):
+    def onCallOver_cb(self, callId):
         pass
 
-    def onIncomingCall(self, account, callid, caller):
+    # jchdel: add missing medialist
+    def onIncomingCall(self, account, callid, caller, medialist):
         """ On incoming call event, add the call to the list of active calls """
 
-        # jchdel: as a matter of fact, I never saw this signal being fired by jamid
-
-        ##print("Incoming call from %s" % caller)
+        print("Incoming call from %s" % caller)
         self.activeCalls[callid] = {'Account': account,
                                     'From': caller,
-                                    'State': ''}
+                                    'MediaList': medialist}
         self.currentCallId = callid
         self.onIncomingCall_cb(callid)
 
@@ -209,7 +208,6 @@ class libjamiCtrl(Thread):
     def onCallIncoming(self, callid, state):
         """ Update state for this call to Incoming """
 
-        ##print("Incoming call %s" % callid)
         self.activeCalls[callid]['State'] = state
         self.currentCallId = callid
         self.onCallIncoming_cb(callid)
@@ -239,38 +237,38 @@ class libjamiCtrl(Thread):
         """ Update state for this call to Hold """
 
         self.activeCalls[callid]['State'] = state
-        self.onCallHold_cb()
+        self.onCallHold_cb(callid)
 
 
     def onCallCurrent(self, callid, state):
         """ Update state for this call to current """
 
         self.activeCalls[callid]['State'] = state
-        self.onCallCurrent_cb()
+        self.onCallCurrent_cb(callid)
 
     def onCallInactive(self, callid, state):
         """ Update state for this call to current """
 
         self.activeCalls[callid]['State'] = state
-        self.onCallInactive_cb()
+        self.onCallInactive_cb(callid)
 
     def onCallBusy(self, callid, state):
         """ Update state for this call to busy """
 
         self.activeCalls[callid]['State'] = state
-        self.onCallBusy_cb()
+        self.onCallBusy_cb(callid)
 
 
     def onCallFailure(self, callid, state):
         """ Handle call failure """
 
         self.activeCalls[callid]['State'] = state
-        self.onCallFailure_cb()
+        self.onCallFailure_cb(callid)
 
     def onCallOver(self, callid):
         """ Handle call failure """
 
-        self.onCallOver_cb()
+        self.onCallOver_cb(callid)
         del self.activeCalls[callid]
         ## jchdel: reset current call as none exists anymore
         self.currentCallId = None
@@ -556,6 +554,7 @@ class libjamiCtrl(Thread):
     # Trust management
     #
 
+    # added by jchdel
     def onIncomingTrustRequest_cb(self, account, conversation, orig, payload, received):
         pass
 
