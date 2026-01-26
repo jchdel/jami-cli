@@ -36,6 +36,8 @@ from gi.repository import GLib
 try:
     import dbus
     from dbus.mainloop.glib import DBusGMainLoop
+    from dbus import ByteArray
+
 except ImportError as e:
     raise libjamiCtrlError(str(e))
 
@@ -59,6 +61,9 @@ class libjamiCtrl(Thread):
 
         self.currentCallId = ""
         self.currentConfId = ""
+
+        self.buddyUriList = {}  # list of buddy URI list: k=uri, v=status
+        self.invalidBuddyUris = []  # list of forbidden buddy URI 
 
         self.isStop = False
 
@@ -101,6 +106,9 @@ class libjamiCtrl(Thread):
                 DBUS_DEAMON_PATH+'/ConfigurationManager', introspect=False)
             proxy_videomgr = bus.get_object(DBUS_DEAMON_OBJECT,
                 DBUS_DEAMON_PATH+'/VideoManager', introspect=False)
+            # jchdel: added presence
+            proxy_presmgr = bus.get_object(DBUS_DEAMON_OBJECT,
+                DBUS_DEAMON_PATH+'/PresenceManager', introspect=False)
 
             self.instance = dbus.Interface(proxy_instance,
                 DBUS_DEAMON_OBJECT+'.Instance')
@@ -111,6 +119,9 @@ class libjamiCtrl(Thread):
             if proxy_videomgr:
                 self.videomanager = dbus.Interface(proxy_videomgr,
                     DBUS_DEAMON_OBJECT+'.VideoManager')
+            # jchdel: added presence
+            self.presencemanager = dbus.Interface(proxy_presmgr,
+                DBUS_DEAMON_OBJECT+'.PresenceManager')
 
         except dbus.DBusException as e:
             raise libjamiCtrlDBusError("Unable to bind to jami DBus API")
@@ -135,6 +146,14 @@ class libjamiCtrl(Thread):
             proxy_confmgr.connect_to_signal('conversationRequestReceived', self.onConversationRequestReceived)
             proxy_confmgr.connect_to_signal('conversationPreferencesUpdated', self.onConversationPreferencesUpdated)
             proxy_confmgr.connect_to_signal('messageReceived', self.onMessageReceived)
+            # jchdel: added device signals
+            proxy_confmgr.connect_to_signal('knownDevicesChanged', self.onKnownDevicesChanged)
+            # jchdel: added presence signals
+            proxy_presmgr.connect_to_signal('newBuddyNotification', self.onNewBuddyNotification)
+            proxy_presmgr.connect_to_signal('nearbyPeerNotification', self.onNearbyPeerNotification)
+            proxy_presmgr.connect_to_signal('subscriptionStateChanged', self.onSubscriptionStateChanged)
+            proxy_presmgr.connect_to_signal('newServerSubscriptionRequest', self.onNewServerSubscriptionRequest)
+            proxy_presmgr.connect_to_signal('serverError', self.onServerError)
 
         except dbus.DBusException as e:
             raise libjamiCtrlDBusError("Unable to connect to jami DBus signals")
@@ -163,7 +182,7 @@ class libjamiCtrl(Thread):
             self.Accept(callId)
         pass
 
-    def onCallHangup_cb(self, callId):
+    def onCallHangup_cb(self, callId, state, code):
         pass
 
     def onCallIncoming_cb(self, callId):
@@ -213,11 +232,12 @@ class libjamiCtrl(Thread):
         self.onCallIncoming_cb(callid)
 
 
-    def onCallHangUp(self, callid, state):
+    def onCallHangUp(self, callid, state, code):
         """ Remove callid from call list """
 
         self.activeCalls[callid]['State'] = state
-        self.onCallHangup_cb(callid)
+        self.activeCalls[callid]['Code'] = code
+        self.onCallHangup_cb(callid, code)
         self.currentCallId = ""
 
     def onCallConnecting(self, callid, state):
@@ -298,7 +318,7 @@ class libjamiCtrl(Thread):
         self.currentCallId = callid
 
         if state == "HUNGUP":
-            self.onCallHangUp(callid, state)
+            self.onCallHangUp(callid, state, code)
         elif state == "CONNECTING":
             self.onCallConnecting(callid, state)
         elif state == "RINGING":
@@ -330,7 +350,8 @@ class libjamiCtrl(Thread):
     def onConferenceCreated(self, convId, confId):
         self.currentConfId = confId
         self.onConferenceCreated_cb()
-        self.onConferenceCreated_callback(confId)
+        # jchdel: add missing parameter to call
+        self.onConferenceCreated_callback(convId, confId)
 
     def onDataTransferEvent(self, transferId, code):
         pass
@@ -348,6 +369,95 @@ class libjamiCtrl(Thread):
         print(f'New message for {account} in conversation {conversationId} with id {message["id"]}')
         for key in message:
             print(f'\t {key}: {message[key]}')
+
+    # jchdel: added presence signals handlers
+    # from https://github.com/savoirfairelinux/jami-daemon/blob/master/bin/dbus/cx.ring.Ring.PresenceManager.xml
+    def onNewBuddyNotification(self, accountId, buddyUri, status, lineStatus):
+        """ Notify when a registered presence uri presence informations changes
+        """
+        print(f'Presence status changed to {lineStatus} for {buddyUri}')
+
+    def onNearbyPeerNotification(self, accountId, buddyUri, status, displayname):
+        """Notify when a new local peer is discovered
+        """
+        print(f'New buddy {buddyUri} discovered')
+
+    def onSubscriptionStateChanged_cb(self, accountId, buddyUri, state):
+        pass
+
+    def onSubscriptionStateChanged(self, accountId, buddyUri, state):
+        """Notify when a the server changes the state of a subscription.
+        """
+        print(f'Subscribed buddy {buddyUri} is now {state}')
+        self.onSubscriptionStateChanged_cb(accountId, buddyUri, state)
+
+    def onNewServerSubscriptionRequest_cb(self, buddyUri):
+        # you should accept with self.subscribeBuddy(buddyUri, True)
+        pass
+
+    def onNewServerSubscriptionRequest(self, buddyUri):
+        """Notify when an other user (or the server) request your presence informations
+        """
+        print(f'Buddy {buddyUri} requests your presence information')
+        if buddyUri in self.invalidBuddyUris:
+            self.subscribeBuddy(buddyUri, False)
+        self.onNewServerSubscriptionRequest_cb(buddyUri)
+
+    def onServerError(self, accountId, error, msg):
+        """
+        """
+        print(f'Presence server error {error} with "{msg}"')
+
+    #
+    # Presence management
+    # added by jchdel
+    #
+
+    def publish(self, accountId=None, status=True, note=""):
+        """ publish presence (boolean) with a note for other users
+        """
+        account = self._valid_account(accountId)
+        self.presencemanager.publish(account, status, note)
+
+    def answerServerRequest(self, buddyUri="", flag=False):
+        """Answer a presence request from the server
+        """
+        if buddyUri != "":
+            self.presencemanager.answerServerRequest(buddyUri, flag)
+
+    def subscribeBuddy(self, account=None, buddyUri="", flag=True):
+        """Ask be be notified when 'uri' presence change
+        """
+        account = self._valid_account(account)
+        if buddyUri != "":
+            self.presencemanager.subscribeBuddy(account, buddyUri, flag)
+
+    def getSubscriptions(self, accountId=None, credentialInformation=None):
+        """New clients connecting to existing daemon need to be aware of active
+                subscriptions.
+
+            While there is more status than "Online" or "Offline", only those
+
+            List of hashes map with the following key-value pairs:
+                    * Buddy:      URI of the contact
+                    * Status:     "Online" or "Offline"
+                    * LineStatus: String
+        """
+        account = self._valid_account(accountId)
+        return self.presencemanager.getSubscriptions(account, credentialInformation)
+
+    def setSubscriptions(self, accountId=None, uriList=[], invalidUris=[]):
+        """Calling "subscribeClient" in a loop is too slow
+
+           A list of SIP URIs
+
+           List of invalid URIs. An URI must be a valid SIP URI. Clients should purge
+                   the list from all invalid URIs
+        """
+        account = self._valid_account(accountId)
+        # self.buddyUriList.keys()
+        # self.invalidBuddyUris
+        self.presencemanager.setSubscriptions(account, uriList, invalidUris)
 
     #
     # Account management
@@ -576,9 +686,10 @@ class libjamiCtrl(Thread):
         print("Discard trust request from %s" % orig)
         return self.configurationmanager.discardTrustRequest(account, orig)
 
-    def sendTrustRequest(self, account=None, to=None, payload=None):
+    def sendTrustRequest(self, account="", to="", payload="empty"):
         """ """
         account = self._valid_account(account)
+        payload = ByteArray(payload.encode('utf_8'))
         print("Send trust request to %s" % to)
         self.configurationmanager.sendTrustRequest(account, to, payload)
 
@@ -666,74 +777,42 @@ class libjamiCtrl(Thread):
 
     def getAllCalls(self):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Return all calls handled by the daemon
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         return [str(x) for x in self.callmanager.getCallList(self.account)]
 
     def getAllConferences(self):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Return all conferences handled by the daemon
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         return [str(x) for x in self.callmanager.getConferenceList(self.account)]
 
     def getCallDetails(self, callid):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Return information on this call if exists
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         return self.callmanager.getCallDetails(self.account, callid)
 
     def getConferenceDetails(self, confid):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Return information on this conference if exists
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         return self.callmanager.getConferenceDetails(self.account, confid)
 
     def printClientCallList(self):
@@ -742,185 +821,113 @@ class libjamiCtrl(Thread):
         for call in self.activeCalls:
             print("\t" + call)
 
-    def Call(self, dest, account=None):
-        """Start a call and return a CallID
-
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
-        return callID Newly generated callidentifier for this call
+    def Call(self, dest):
         """
-
+        Start a call and return a CallID
+        """
         if dest is None or dest == "":
             raise libjamiCtrlError("Invalid call destination")
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
         # Send the request to the CallManager
         callid = self.callmanager.placeCall(self.account, dest)
         if callid:
             # Add the call to the list of active calls and set status to SENT
             self.activeCalls[callid] = {'Account': self.account, 'To': dest, 'State': 'SENT' }
-
         return callid
-
 
     def HangUp(self, callid):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         End a call identified by a CallID
         """
 
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if callid is None or callid == "":
             pass # just to see
-
         self.callmanager.hangUp(self.account, callid)
-
 
     def Transfer(self, callid, to):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Transfert a call identified by a CallID
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
-
         self.callmanager.transfert(self.account, callid, to)
 
     def Refuse(self, callid):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Refuse an incoming call identified by a CallID
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         print("Refuse call " + callid)
-
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
-
         self.callmanager.refuse(self.account, callid)
 
 
     def Accept(self, callid):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Accept an incoming call identified by a CallID
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         print("Accept call " + callid)
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to accept a call without a registered account")
-
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
-
         self.callmanager.accept(self.account, callid)
 
 
     def Hold(self, callid):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Hold a call identified by a CallID
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
-
         print("Hold call " + callid)
         self.callmanager.hold(self.account, callid)
 
-
     def UnHold(self, callid):
         """
-        Use the current account previously set using setAccount().
-        If no account specified, first registered one in account list is used.
-
         Unhold an incoming call identified by a CallID
         """
-
-        # Set the account to be used for this call
         if not self.account:
             self.setFirstRegisteredAccount()
-
         if self.account != "IP2IP" and not self.isAccountRegistered():
             raise libjamiCtrlAccountError("Unable to place a call without a registered account")
-
-
         if callid is None or callid == "":
             raise libjamiCtrlError("Invalid callID")
-
         print("Unhold call " + callid)
         self.callmanager.unhold(self.account, callid)
 
     def SetAudioOutputDevice(self, index):
         self.configurationmanager.setAudioOutputDevice(int (index ))
 
-
     def SetAudioInputDevice(self, index):
         self.configurationmanager.setAudioInputDevice(int (index ))
-
 
     def ListAudioDevices(self):
         outs = self.configurationmanager.getAudioOutputDeviceList()
@@ -930,16 +937,12 @@ class libjamiCtrl(Thread):
             "inputDevices": list(ins)
         }
 
-
     def Dtmf(self, key):
         """Send a DTMF"""
-
         self.callmanager.playDTMF(key)
-
 
     def _GenerateCallID(self):
         """Generate Call ID"""
-
         m = hashlib.md5()
         t = int( time.time() * 1000 )
         r = int( random.random()*100000000000000000 )
@@ -947,21 +950,17 @@ class libjamiCtrl(Thread):
         callid = m.hexdigest()
         return callid
 
-
     def createConference(self, call1Id, call2Id):
         """ Create a conference given the two call ids """
-
         self.callmanager.joinParticipant(call1Id, call2Id)
         return self.callmanager.getConferenceId(call1Id)
 
     def hangupConference(self, confId):
         """ Hang up each call for this conference """
-
         self.callmanager.hangUpConference(confId)
 
     def switchInput(self, callid, inputName):
         """switch to input if exist"""
-
         return self.callmanager.switchInput(callid, inputName)
 
     def interruptHandler(self, signum, frame):
@@ -1007,6 +1006,16 @@ class libjamiCtrl(Thread):
 
     def removeConversation(self, account, conversationId):
         return self.configurationmanager.removeConversation(account, conversationId)
+
+    #
+
+    def onKnownDevicesChanged(self, account, devices):
+        pass
+
+    def getKnownRingDevices(self, account):
+        return self.configurationmanager.getKnownRingDevices(account)
+
+    #
 
     def run(self):
         """Processing method for this thread"""
