@@ -2,7 +2,6 @@ import gi, sys, os, time, signal
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Adw, Gio, Gtk, GLib, Gdk, GObject
-from gi.repository import Gtk, Adw, Gio, GLib, GObject
 from loguru import logger
 
 DBUS_DEAMON_OBJECT = 'cx.ring.Ring'
@@ -464,9 +463,6 @@ class App(Adw.Application):
         super().__init__(application_id=application_id,
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.add_main_option("debug", ord("d"), GLib.OptionFlags.NONE, GLib.OptionArg.NONE, "Debug mode", None)
-        self.app_id  = application_id
-        self.window  = None
-        #self.hold()
 
     def do_startup(self):
         logger.debug("Application startup...")
@@ -492,31 +488,14 @@ class App(Adw.Application):
             logger.remove()
             logger.add(sys.stderr, level="DEBUG")
         logger.debug("Debug mode activated")
-        self.activate()
-        self.window = MainWindow(self)
-        self.window.connect("destroy", self.on_window_destroyed)
-        self.window.present()
-        return 0
-
-    def do_activate(self):
-        """Handle application activation."""
-        pass
-
-    def on_window_destroyed(self, win):
-        """Handle window destruction."""
-        if win == self.windows: 
-            self.windows = None
-
-    def do_shutdown(self):
-        """Perform shutdown cleanup."""
-        super().do_shutdown()
+        MainWindow(application = self).present()
 
 class MainWindow(Adw.Window):
     def __init__(self, application = None):
         super().__init__()
         self.set_application(application)
-        icon_name = "eu.Hellea.Jami.log"
-        self.set_title("eu.Hellea.Jami!")
+        icon_name = application.get_application_id()
+        self.set_title("Jami signals log")
         self.set_icon_name(icon_name)
         self.set_default_size(360, 600)
         self.daemon = JamiDispatcher()
@@ -531,7 +510,7 @@ class MainWindow(Adw.Window):
         self.overlay.set_child(main_vbox)
 
         header = Adw.HeaderBar()
-        title_lbl = Gtk.Label(label="eu.Hellea.Jami! - signals", css_classes=["title"])
+        title_lbl = Gtk.Label(label=self.title, css_classes=["title"])
         header.set_title_widget(title_lbl)
         main_vbox.append(header)
 
@@ -543,7 +522,6 @@ class MainWindow(Adw.Window):
         jlogger.set_editable(False)
         jlogger.set_hexpand(True)
         jlogger.set_vexpand(True)
-        #jlogger.set_size_request(340, 580)
         jlogger.set_margin_bottom(10)
         jlogger.set_margin_end(10)
         jlogger.set_margin_start(10)
